@@ -7,14 +7,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ComplianceScore from './compliance-score'
 import DiffViewer from './diff-viewer'
 
-export default function AlignedOutputPanel() {
+interface AlignedOutputPanelProps {
+  alignmentResult: any
+}
+
+export default function AlignedOutputPanel({ alignmentResult }: AlignedOutputPanelProps) {
   const [copiedText, setCopiedText] = useState(false)
 
   const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText('Aligned document content...')
-    setCopiedText(true)
-    setTimeout(() => setCopiedText(false), 2000)
+    if (alignmentResult?.aligned_brd) {
+      navigator.clipboard.writeText(alignmentResult.aligned_brd)
+      setCopiedText(true)
+      setTimeout(() => setCopiedText(false), 2000)
+    }
   }
+
+  const score = alignmentResult?.compliance_score ? Math.round(alignmentResult.compliance_score * 100) : 0
+  const originalBrd = alignmentResult?.original_brd || ""
+  const alignedBrd = alignmentResult?.aligned_brd || ""
+  const violations = alignmentResult?.violations || []
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -54,7 +65,7 @@ export default function AlignedOutputPanel() {
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Left - Score */}
             <div className="lg:col-span-1">
-              <ComplianceScore score={88} />
+              <ComplianceScore score={score} />
             </div>
 
             {/* Right - Summary */}
@@ -63,47 +74,28 @@ export default function AlignedOutputPanel() {
                 <h3 className="text-lg font-semibold text-foreground">Resolution Summary</h3>
 
                 <div className="space-y-4">
-                  {/* Resolution item 1 */}
-                  <div className="p-4 rounded-lg border border-green-500/20 bg-green-500/10 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-medium text-green-400">Data Privacy Conflict - Resolved</h4>
-                      <span className="text-xs font-medium text-green-400 bg-green-500/20 px-2 py-1 rounded">
-                        High
-                      </span>
+                  {violations.length > 0 ? violations.map((violation: any, idx: number) => (
+                    <div key={idx} className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-medium text-yellow-400">{violation.policy_section}</h4>
+                        <span className="text-xs font-medium text-yellow-400 bg-yellow-500/20 px-2 py-1 rounded uppercase">
+                          {violation.severity}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {violation.description}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Implemented GDPR-compliant consent system with tiered user opt-in options.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">Impact: +5% compliance score</p>
-                  </div>
-
-                  {/* Resolution item 2 */}
-                  <div className="p-4 rounded-lg border border-blue-500/20 bg-blue-500/10 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-medium text-blue-400">Partner Data Sharing - Updated</h4>
-                      <span className="text-xs font-medium text-blue-400 bg-blue-500/20 px-2 py-1 rounded">
-                        Medium
-                      </span>
+                  )) : (
+                    <div className="p-4 rounded-lg border border-green-500/20 bg-green-500/10 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-medium text-green-400">All Requirements Met</h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        No outstanding compliance violations found in the final aligned document.
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Requires explicit user consent and maintains audit trail of all partner access.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">Impact: +2% compliance score</p>
-                  </div>
-
-                  {/* Resolution item 3 */}
-                  <div className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-medium text-yellow-400">Data Retention Policy - Enhanced</h4>
-                      <span className="text-xs font-medium text-yellow-400 bg-yellow-500/20 px-2 py-1 rounded">
-                        Medium
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Implemented 24-month default retention with user-configurable options.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">Impact: +1% compliance score</p>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -112,10 +104,9 @@ export default function AlignedOutputPanel() {
                 <h3 className="text-lg font-semibold text-foreground">Recommended Next Steps</h3>
                 <ol className="space-y-3 text-sm text-muted-foreground list-decimal list-inside">
                   <li>Review the aligned document with your compliance team</li>
-                  <li>Implement consent system changes (estimated 2 weeks)</li>
+                  <li>Implement consent system changes based on feedback</li>
                   <li>Set up audit trail logging infrastructure</li>
                   <li>Configure data retention policies in production</li>
-                  <li>Schedule partner notification and re-consent process</li>
                 </ol>
               </div>
             </div>
@@ -124,7 +115,7 @@ export default function AlignedOutputPanel() {
 
         {/* Diff tab */}
         <TabsContent value="diff" className="space-y-6">
-          <DiffViewer />
+          <DiffViewer originalContent={originalBrd} alignedContent={alignedBrd} />
         </TabsContent>
 
         {/* Exports tab */}

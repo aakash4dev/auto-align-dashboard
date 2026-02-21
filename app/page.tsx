@@ -17,6 +17,10 @@ export default function Dashboard() {
     requirement: [],
   })
 
+  // State to hold the backend response
+  const [alignmentResult, setAlignmentResult] = useState<any>(null)
+  const [isAligning, setIsAligning] = useState(false)
+
   const handleFileUpload = (type: 'knowledge' | 'requirement', files: File[]) => {
     setUploadedFiles((prev) => ({
       ...prev,
@@ -31,8 +35,45 @@ export default function Dashboard() {
     }))
   }
 
-  const handleStartDebate = () => {
+  const handleStartDebate = async () => {
+    // Optionally move to the debate tab immediately to show a loading state
     setActiveTab('debate')
+    setIsAligning(true)
+    setAlignmentResult(null)
+
+    try {
+      // For now, we are simulating extracting the content from the first uploaded requirement file.
+      // In a real app, you would read the file content here.
+      let brdContent = "User data will be stored indefinitely on public servers."
+      if (uploadedFiles.requirement.length > 0) {
+        brdContent = await uploadedFiles.requirement[0].text()
+      }
+
+      const response = await fetch('http://localhost:8000/api/align', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brd_content: brdContent,
+          max_iterations: 3,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('API request failed')
+      }
+
+      const data = await response.json()
+      setAlignmentResult(data)
+      setIsAligning(false)
+      // Note: We leave the tab on 'debate'. 
+      // A common pattern would be to let AgenticDebateArena finish its animation then switch to 'output',
+      // or we can just pass the result to the debate arena to render.
+    } catch (error) {
+      console.error('Error starting debate:', error)
+      setIsAligning(false)
+    }
   }
 
   return (
@@ -50,11 +91,21 @@ export default function Dashboard() {
                 onStartDebate={handleStartDebate}
               />
             )}
-            {activeTab === 'debate' && <AgenticDebateArena uploadedFiles={uploadedFiles} />}
-            {activeTab === 'output' && <AlignedOutputPanel />}
+            {activeTab === 'debate' && (
+              <AgenticDebateArena
+                uploadedFiles={uploadedFiles}
+                alignmentResult={alignmentResult}
+                isAligning={isAligning}
+                onDebateComplete={() => setActiveTab('output')}
+              />
+            )}
+            {activeTab === 'output' && (
+              <AlignedOutputPanel alignmentResult={alignmentResult} />
+            )}
           </div>
         </main>
       </div>
     </div>
   )
 }
+

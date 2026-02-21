@@ -4,44 +4,13 @@ import { Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 
-const originalContent = `## Feature Proposal: Real-time User Analytics Dashboard
-
-### Requirements
-1. Display user activity in real-time
-2. Store user behavior data indefinitely
-3. Share analytics with third-party partners
-4. No user consent required for data collection
-
-### Technical Details
-- Collect all user interactions
-- Store in centralized data warehouse
-- API for partner access`
-
-const alignedContent = `## Feature Proposal: Real-time User Analytics Dashboard
-
-### Requirements
-1. Display user activity in real-time (GDPR compliant)
-2. Store user behavior data with configurable retention (default 24 months)
-3. Share analytics with pre-approved partners only (explicit user consent)
-4. Implement tiered consent system for data collection
-
-### Compliance Notes
-- Data collection requires explicit opt-in consent per GDPR Article 7
-- Retention policy must be disclosed to users
-- Partner sharing requires separate consent with clear opt-out option
-- Audit trail logging required for all access events
-
-### Technical Details
-- Collect user interactions with consent validation
-- Store in encrypted data warehouse with TTL policies
-- API for partner access with authentication and logging
-- Event sourcing for audit trail`
-
 interface DiffViewerProps {
   showDiff?: boolean
+  originalContent?: string
+  alignedContent?: string
 }
 
-export default function DiffViewer({ showDiff = true }: DiffViewerProps) {
+export default function DiffViewer({ showDiff = true, originalContent = "", alignedContent = "" }: DiffViewerProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
   const handleCopy = (text: string, index: number) => {
@@ -83,7 +52,7 @@ export default function DiffViewer({ showDiff = true }: DiffViewerProps) {
           <div className="p-4 rounded-lg border border-red-500/20 bg-red-500/5 min-h-[500px] font-mono text-sm text-foreground overflow-auto">
             <div className="space-y-2">
               {originalContent.split('\n').map((line, idx) => (
-                <div key={idx} className="hover:bg-red-500/10 px-2 py-1 rounded transition-colors">
+                <div key={idx} className="hover:bg-red-500/10 px-2 py-1 rounded transition-colors break-words whitespace-pre-wrap">
                   {line}
                 </div>
               ))}
@@ -114,13 +83,12 @@ export default function DiffViewer({ showDiff = true }: DiffViewerProps) {
           <div className="p-4 rounded-lg border border-green-500/20 bg-green-500/5 min-h-[500px] font-mono text-sm text-foreground overflow-auto">
             <div className="space-y-2">
               {alignedContent.split('\n').map((line, idx) => {
-                const isNew = line.includes('GDPR') || line.includes('consent') || line.includes('Compliance') || line.includes('audit')
+                const isNew = line.includes('ALIGNED:')
                 return (
                   <div
                     key={idx}
-                    className={`px-2 py-1 rounded transition-colors ${
-                      isNew ? 'bg-green-500/20 border-l-2 border-green-400' : 'hover:bg-green-500/10'
-                    }`}
+                    className={`px-2 py-1 rounded transition-colors break-words whitespace-pre-wrap ${isNew ? 'bg-green-500/20 border-l-2 border-green-400' : 'hover:bg-green-500/10'
+                      }`}
                   >
                     {isNew && <span className="text-green-400">+ </span>}
                     {line}
@@ -130,33 +98,6 @@ export default function DiffViewer({ showDiff = true }: DiffViewerProps) {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Changes summary */}
-      <div className="p-4 rounded-lg bg-card border border-border space-y-3">
-        <p className="text-sm font-medium text-foreground">Changes Applied</p>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex items-center gap-2">
-            <span className="text-green-400">+</span>
-            <span>Added GDPR compliance requirements</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-green-400">+</span>
-            <span>Implemented consent validation system</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-green-400">+</span>
-            <span>Added data retention policies</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-green-400">+</span>
-            <span>Added audit trail logging requirements</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-blue-400">~</span>
-            <span>Updated partner access procedures</span>
-          </li>
-        </ul>
       </div>
     </div>
   )

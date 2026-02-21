@@ -12,64 +12,39 @@ interface AgenticDebateArenaProps {
     knowledge: File[]
     requirement: File[]
   }
+  alignmentResult: any
+  isAligning: boolean
+  onDebateComplete: () => void
 }
 
-export default function AgenticDebateArena({ uploadedFiles }: AgenticDebateArenaProps) {
-  const [isDebating, setIsDebating] = useState(true)
+export default function AgenticDebateArena({
+  uploadedFiles,
+  alignmentResult,
+  isAligning,
+  onDebateComplete
+}: AgenticDebateArenaProps) {
   const [currentRound, setCurrentRound] = useState(1)
-  const [messages, setMessages] = useState<AgentMessageProps[]>([
-    {
-      id: '1',
-      agent: 'defender',
-      type: 'violation',
-      title: 'Data Privacy Conflict',
-      content:
-        'The new feature request violates Section 4.2.1 of the Data Protection Policy. User data cannot be stored without explicit GDPR consent.',
-      severity: 'high',
-      timestamp: new Date(Date.now() - 5000),
-    },
-    {
-      id: '2',
-      agent: 'drafter',
-      type: 'solution',
-      title: 'Consent Framework Enhancement',
-      content:
-        'Propose implementing a tiered consent system that allows users to opt-in at different levels. This maintains compliance while enabling the new feature for consenting users.',
-      severity: 'medium',
-      timestamp: new Date(Date.now() - 4000),
-    },
-    {
-      id: '3',
-      agent: 'defender',
-      type: 'analysis',
-      title: 'Compliance Verification',
-      content:
-        'Tiered consent model is compatible with GDPR Article 7. Requires audit trail logging per Section 5.3.2.',
-      severity: 'low',
-      timestamp: new Date(Date.now() - 3000),
-    },
-    {
-      id: '4',
-      agent: 'drafter',
-      type: 'solution',
-      title: 'Implementation Path',
-      content:
-        'Integrate audit logging into existing EventStore infrastructure. Estimated 2-week implementation with 95% compliance coverage.',
-      severity: 'low',
-      timestamp: new Date(Date.now() - 2000),
-    },
-  ])
+  const [messages, setMessages] = useState<AgentMessageProps[]>([])
 
-  // Simulate debate rounds
+  // Parse audit trail into messages when alignmentResult is available
   useEffect(() => {
-    if (!isDebating) return
-
-    const interval = setInterval(() => {
-      setCurrentRound((prev) => (prev >= 5 ? 1 : prev + 1))
-    }, 4000)
-
-    return () => clearInterval(interval)
-  }, [isDebating])
+    if (alignmentResult && alignmentResult.audit_trail) {
+      const parsedMessages: AgentMessageProps[] = alignmentResult.audit_trail.map((entry: any, index: number) => {
+        const isDefender = entry.agent === 'defender'
+        return {
+          id: `msg-${index}`,
+          agent: entry.agent,
+          type: isDefender ? 'violation' : 'solution',
+          title: isDefender ? `Round ${entry.iteration} Analysis` : `Round ${entry.iteration} Resolution`,
+          content: entry.summary || `Addressed ${entry.violations_addressed} violations. Original length: ${entry.original_length}, Revised: ${entry.revised_length}.`,
+          severity: isDefender ? 'high' : 'medium', // Default severities for visual distinction
+          timestamp: new Date(Date.now() - (alignmentResult.audit_trail.length - index) * 1000)
+        }
+      })
+      setMessages(parsedMessages)
+      setCurrentRound(alignmentResult.iterations_used || 1)
+    }
+  }, [alignmentResult])
 
   const defenderMessages = messages.filter((m) => m.agent === 'defender')
   const drafterMessages = messages.filter((m) => m.agent === 'drafter')
@@ -95,9 +70,13 @@ export default function AgenticDebateArena({ uploadedFiles }: AgenticDebateArena
 
           {/* Messages */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-            {defenderMessages.length === 0 ? (
+            {isAligning ? (
               <div className="p-4 rounded-lg bg-card border border-border text-center">
                 <p className="text-sm text-muted-foreground">Analyzing policies...</p>
+              </div>
+            ) : defenderMessages.length === 0 && alignmentResult ? (
+              <div className="p-4 rounded-lg bg-card border border-border text-center">
+                <p className="text-sm text-green-500">No violations found.</p>
               </div>
             ) : (
               defenderMessages.map((msg) => (
@@ -110,33 +89,16 @@ export default function AgenticDebateArena({ uploadedFiles }: AgenticDebateArena
         {/* Center - Ping pong animation */}
         <div className="lg:col-span-1 flex flex-col items-center justify-between">
           <div className="w-full p-6 rounded-lg border border-border bg-card/50">
-            <PingPongAnimation round={currentRound} isDebating={isDebating} />
+            <PingPongAnimation round={currentRound} isDebating={isAligning} />
           </div>
 
           {/* Control buttons */}
           <div className="mt-6 flex gap-2 w-full justify-center">
-            <Button
-              variant={isDebating ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setIsDebating(!isDebating)}
-              className={
-                isDebating
-                  ? 'bg-purple-accent hover:bg-purple-accent/80 text-white'
-                  : 'border-border text-foreground hover:bg-card'
-              }
-            >
-              {isDebating ? (
-                <>
-                  <Pause className="w-4 h-4 mr-2" />
-                  Pause
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  Resume
-                </>
-              )}
-            </Button>
+            {!isAligning && alignmentResult && (
+              <Button onClick={onDebateComplete} className="bg-purple-accent hover:bg-purple-accent/80 text-white w-full">
+                View Final Output
+              </Button>
+            )}
           </div>
         </div>
 
@@ -149,7 +111,7 @@ export default function AgenticDebateArena({ uploadedFiles }: AgenticDebateArena
 
           {/* Messages */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-            {drafterMessages.length === 0 ? (
+            {isAligning ? (
               <div className="p-4 rounded-lg bg-card border border-border text-center">
                 <p className="text-sm text-muted-foreground">Generating solutions...</p>
               </div>
@@ -168,7 +130,7 @@ export default function AgenticDebateArena({ uploadedFiles }: AgenticDebateArena
           <DebateProgress
             currentRound={currentRound}
             totalRounds={5}
-            isDebating={isDebating}
+            isDebating={isAligning}
             violations={defenderMessages.length}
             resolutions={drafterMessages.length}
           />
@@ -180,13 +142,15 @@ export default function AgenticDebateArena({ uploadedFiles }: AgenticDebateArena
         <div>
           <p className="font-semibold text-foreground">Debate Summary</p>
           <p className="text-sm text-muted-foreground mt-1">
-            {defenderMessages.length} violation{defenderMessages.length !== 1 ? 's' : ''} found,{' '}
-            {drafterMessages.length} solution{drafterMessages.length !== 1 ? 's' : ''} proposed
+            {alignmentResult?.status === 'ALIGNED' ? 'Fully Aligned' : isAligning ? 'Processing...' : `Partially Aligned (${alignmentResult?.compliance_score * 100}%)`}
           </p>
         </div>
-        <Button className="gap-2 bg-gradient-to-r from-purple-accent to-blue-accent hover:from-purple-accent/80 hover:to-blue-accent/80 text-white">
-          <Download className="w-4 h-4" />
-          Generate Report
+        <Button
+          disabled={isAligning}
+          onClick={onDebateComplete}
+          className="gap-2 bg-gradient-to-r from-purple-accent to-blue-accent hover:from-purple-accent/80 hover:to-blue-accent/80 text-white"
+        >
+          View Results
         </Button>
       </div>
     </div>
